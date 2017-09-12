@@ -14,7 +14,7 @@
 #include <string.h>
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 100
+#define MAXBUFSIZE 100000
 
 int main (int argc, char * argv[] )
 {
@@ -24,7 +24,8 @@ int main (int argc, char * argv[] )
 	struct sockaddr_in sin,remote;     //"Internet socket address structure"
 	unsigned int remote_length;         //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
-	char buffer[MAXBUFSIZE];             //a buffer to store our received message
+	char buffer[MAXBUFSIZE]; 
+	char file_name[20];            //a buffer to store our received message
 	if (argc != 2)
 	{
 		printf ("USAGE:  <port>\n");
@@ -69,16 +70,36 @@ int main (int argc, char * argv[] )
 	//waits for an incoming message
 	bzero(buffer, sizeof(buffer));
 	nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &remote_length);
+	nbytes = recvfrom(sock,file_name,20,0,(struct sockaddr *)&remote,&remote_length);
 	//printf("%d\n",nbytes);
 	//printf("just waiting here to recieve\n");
 	if(nbytes>0){
 		printf("The client sent %s \n",buffer);
+		printf("The file name is %s\n",file_name );
 	}
 	else{
 		printf("The client sent \n ");
 	}
-	char *msg = "orange";
+	FILE *file = fopen(file_name,"r");
+	char msg[MAXBUFSIZE];
+	//fseek(file,0,SEEK_SET);
+	//while(msg != EOF){
+	//while(1){
+	int data=fread(msg, 1,MAXBUFSIZE,file);
+	printf("%s",msg);
 	nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, remote_length);
+	printf("%d\n",nbytes );
+	//}
+
+	
+	/*if(file == NULL){
+		printf("THe file doenst exist\n");
+	}
+	nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, remote_length);
+	bzero(msg, 200);
+	strcpy(msg, "end");
+    sendto(sock, msg, sizeof(msg), 0, (struct sockaddr*)&remote, remote_length);*/
+
 	//printf("%d\n",msg);
 	close(sock);
 }

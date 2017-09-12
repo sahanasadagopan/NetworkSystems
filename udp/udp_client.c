@@ -12,7 +12,7 @@
 #include <memory.h>
 #include <errno.h>
 
-#define MAXBUFSIZE 100
+#define MAXBUFSIZE 100000
 
 /* You will have to modify the program below */
 
@@ -51,34 +51,36 @@ int main (int argc, char * argv[])
 		printf("binding\n");
 		
 	}
-	
 	else{
 		printf("create socket \n");
 		//printf("%d\n",sock );
 	}
-	//char *command;
+	char command[20];
+	char file_name[20];
+	//int command=0;
 	printf("Pick one of the commands\n");
 	printf("get[file_name]\n");
 	printf("put[file_name]\n");
 	printf("delete[file_name]\n");
 	printf("ls\n");
 	printf("exit\n");
-	printf("Type the command and filename");
-	//scanf("The user's IP address  and file%c \n", command);
-
+	printf("Type your command and file name ");
+    scanf(" %s %s", command,file_name);
+    //scanf(" %s ", file_name);
 	/******************
 	  sendto() sends immediately.  
 	  it will report an error if the message fails to leave the computer
 	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
 	 ******************/
-	char *command = "apple";
+	//char *command = "apple";
 	unsigned int remote_length = sizeof(remote);	
 	nbytes = sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote, sizeof(remote));
+	nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
 	// Blocks till bytes are received
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
 	bzero(buffer, sizeof(buffer));
-
+	//while(1){
 	nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &addr_length);  
 	printf("%d\n",nbytes );
 	if(nbytes>0){
@@ -86,9 +88,15 @@ int main (int argc, char * argv[])
 	}
 	else{
 		printf("The client sent %s \n ",buffer);
-	}
+		}
+	//}
+	//while(1){
+	FILE *file;
+	file=fopen("foo1_trans.txt","w");
+	int data= fwrite(buffer,1, sizeof(buffer),file);
 	printf("Server says %s\n", buffer);
-
+	//}
+	
 	close(sock);
 
 }
