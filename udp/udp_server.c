@@ -25,6 +25,7 @@ int main (int argc, char * argv[] )
 	unsigned int remote_length;         //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
 	char buffer[MAXBUFSIZE]; 
+	char stringarr[20];
 	char file_name[20];            //a buffer to store our received message
 	if (argc != 2)
 	{
@@ -66,13 +67,16 @@ int main (int argc, char * argv[] )
 	}
 
 	remote_length = sizeof(remote);
-	//unsigned int sin_length = sizeof(sender);
-	//waits for an incoming message
 	bzero(buffer, sizeof(buffer));
 	nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &remote_length);
 	nbytes = recvfrom(sock,file_name,20,0,(struct sockaddr *)&remote,&remote_length);
-	//printf("%d\n",nbytes);
-	//printf("just waiting here to recieve\n");
+	strcpy(stringarr,buffer);
+	int ret;
+	ret=strcmp(stringarr,"get");
+	printf("%d\n",ret );
+	if(ret == 0){
+		
+		printf("got the command\n");
 	if(nbytes>0){
 		printf("The client sent %s \n",buffer);
 		printf("The file name is %s\n",file_name );
@@ -80,27 +84,58 @@ int main (int argc, char * argv[] )
 	else{
 		printf("The client sent \n ");
 	}
-	FILE *file = fopen(file_name,"r");
-	char msg[MAXBUFSIZE];
-	//fseek(file,0,SEEK_SET);
-	//while(msg != EOF){
-	//while(1){
-	int data=fread(msg, 1,MAXBUFSIZE,file);
-	printf("%s",msg);
-	nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, remote_length);
-	printf("%d\n",nbytes );
-	//}
+	FILE *file;
+	char *msg;
+	size_t result;
+	long lSize;
+	file = fopen ( file_name , "rb" );
+  	if (file==NULL) {fputs ("File error",stderr); exit (1);}
 
-	
-	/*if(file == NULL){
-		printf("THe file doenst exist\n");
-	}
-	nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, remote_length);
-	bzero(msg, 200);
-	strcpy(msg, "end");
-    sendto(sock, msg, sizeof(msg), 0, (struct sockaddr*)&remote, remote_length);*/
+  // obtain file size:
+ 	fseek (file , 0 , SEEK_END);
+  	lSize = ftell (file);
+  	rewind (file);
 
-	//printf("%d\n",msg);
+  // allocate memory to contain the whole file:
+    msg = (char*) malloc (sizeof(char)*lSize);
+  	if (msg == NULL) {fputs ("Memory error",stderr); exit (2);}
+ 	result = fread (msg,1,lSize,file);
+  	if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+  	printf("%ld\n",lSize );
+  	FILE *filesed;
+	filesed=fopen("foo1_trans","wb");
+	int data= fwrite(msg,1, lSize,filesed);
+	nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, remote_length);
+	fclose (file);
+    fclose (filesed);
+	free (msg);
 	close(sock);
+	}
+	ret=strcmp(stringarr,"put");
+	printf("%d\n",ret );
+	if(ret == 0){
+		nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &remote_length); 
+		printf("%s\n",buffer );
+		FILE *file;
+		printf("%ld\n", sizeof(buffer) );
+		file=fopen("foo1_trans2","wb");
+		int data= fwrite(buffer,1, sizeof(buffer),file);
+		fclose (file);
+		close(sock); 
+
+	}
+	/*ret = strcmp(stringarr,"ls");
+	if (ret == 0){
+		char *msg;
+		char *names;
+		for(int i=0;i<18;i++)
+			nbytes = recvfrom(sock,names,100,0,(struct sockaddr *)&remote, &remote_length); 
+		printf("files%s\n",names );
+		close(sock);
+	}*/
+
+	ret = strcmp(stringarr,"")
+
 }
+
 

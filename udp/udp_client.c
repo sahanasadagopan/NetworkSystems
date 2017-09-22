@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
-
+#include <dirent.h>
 #define MAXBUFSIZE 100000
 
 /* You will have to modify the program below */
@@ -53,11 +53,9 @@ int main (int argc, char * argv[])
 	}
 	else{
 		printf("create socket \n");
-		//printf("%d\n",sock );
 	}
 	char command[20];
 	char file_name[20];
-	//int command=0;
 	printf("Pick one of the commands\n");
 	printf("get[file_name]\n");
 	printf("put[file_name]\n");
@@ -66,38 +64,94 @@ int main (int argc, char * argv[])
 	printf("exit\n");
 	printf("Type your command and file name ");
     scanf(" %s %s", command,file_name);
-    //scanf(" %s ", file_name);
 	/******************
 	  sendto() sends immediately.  
 	  it will report an error if the message fails to leave the computer
 	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
 	 ******************/
-	//char *command = "apple";
 	unsigned int remote_length = sizeof(remote);	
 	nbytes = sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote, sizeof(remote));
 	nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
-	// Blocks till bytes are received
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
 	bzero(buffer, sizeof(buffer));
-	//while(1){
-	nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &addr_length);  
-	printf("%d\n",nbytes );
+	int ret;
+	ret = strcmp(command,"get");
+	if (ret ==0){
+		nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &addr_length);  
+		printf("%d\n",nbytes );
+
 	if(nbytes>0){
 		printf("The client didnt says \n");
 	}
 	else{
 		printf("The client sent %s \n ",buffer);
 		}
-	//}
-	//while(1){
 	FILE *file;
-	file=fopen("foo1_trans.txt","w");
+	printf("%ld\n", sizeof(buffer) );
+	file=fopen("foo1_trans2","wb");
 	int data= fwrite(buffer,1, sizeof(buffer),file);
-	printf("Server says %s\n", buffer);
-	//}
-	
-	close(sock);
+	fclose (file);
 
+	close(sock);
+	}
+	ret=strcmp(command,"put");
+	printf("%d\n",ret );
+	if(ret == 0){
+		FILE *file;
+		char *msg;
+		size_t result;
+		long lSize;
+		file = fopen ( file_name , "rb" );
+  		if (file==NULL) {fputs ("File error",stderr); exit (1);}
+  		fseek (file , 0 , SEEK_END);
+  		lSize = ftell (file);
+  		rewind (file);
+  		msg = (char*) malloc (sizeof(char)*lSize);
+  		if (msg == NULL) {fputs ("Memory error",stderr); exit (2);}
+ 		result = fread (msg,1,lSize,file);
+  		if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
+  		printf("%ld\n",lSize );
+		nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, sizeof(remote));
+		fclose (file);
+		free (msg);
+		close(sock);
+	}
+	/*ret = strcmp(command,"ls");
+	if (ret == 0){	
+		size_t i = 0, j;
+  		size_t size = 1;
+	 	char msg[100];
+	 	int count=0;
+	 	char **names,**tmp;
+	    DIR *directory;
+  		struct dirent *dir;
+
+  		names = malloc(size * sizeof *names); //Start with 1
+
+  		directory = opendir(".");
+  		if (!directory) { puts("opendir failed"); exit(1); }
+
+ 		while ((dir = readdir(directory)) != NULL) {
+     		names[i]=strdup(dir->d_name);
+     		if(!names[i]) { puts("strdup failed."); exit(1); }
+     			i++;
+     		if (i>=size) { // Double the number of pointers
+        		tmp = realloc(names, size*2*sizeof *names );
+        		if(!tmp) { puts("realloc failed."); exit(1); }
+        		else { names = tmp; size*=2;  }
+     		}
+  		}
+  		closedir(directory); 
+  		printf("%s\n",names[0] );
+  		printf("%zu\n",strlen(*names) );
+  		for(int j=0;j<i;j++){
+	    	nbytes = sendto(sock,names[j], 100,0,(struct sockaddr *)&remote, sizeof(remote));  
+	    	printf("%s\n",names[j] );
+	    }
+	    
+	    close(sock);
+		}*/
 }
+
 
