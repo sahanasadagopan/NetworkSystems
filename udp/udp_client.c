@@ -11,20 +11,53 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
-#include <dirent.h>
-#define MAXBUFSIZE 100000
 
-/* You will have to modify the program below */
+#define PACKETSIZE 1000
+
+void filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsize){
+	int addr_length = sizeof(struct sockaddr);
+	int nbytes;
+	char buffer[PACKETSIZE];
+	//int ret = strcmp(file_name,"foo4");
+	//if(ret == 0){
+		FILE *file;
+		file = fopen("foo4_sent","wb+");
+		int recievedpack = 0;
+		int bytesleft=Totalsize;
+		int datasize =1000;
+		while(bytesleft!= 0){
+			nbytes = recvfrom(sock,buffer,datasize,0,(struct sockaddr*)&remote, &addr_length);
+			printf("%s\n",buffer );
+			int data = fwrite(buffer,1,datasize,file);
+
+			recievedpack = recievedpack+datasize;
+			printf("%d\n",recievedpack );
+			int bytesleft=Totalsize-recievedpack;
+			printf("%d\n",bytesleft );
+			printf("%d\n",Totalsize );
+			if(bytesleft<1000){
+				datasize=bytesleft;	
+			}
+			else{
+				datasize=1000;
+			}
+			
+			if (bytesleft == 0){
+				break;
+				fclose(file);
+			}
+		}
+		fclose(file);
+	//}
+}
 
 int main (int argc, char * argv[])
 {
-	char array[]="hooray";
-
-
 	int nbytes;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
-	char buffer[MAXBUFSIZE];
-
+	char buffer[PACKETSIZE];
+	char *size;
+	size = (char*) malloc(100*sizeof(char));
 	struct sockaddr_in remote;              //"Internet socket address structure"
 
 	if (argc < 3)
@@ -53,9 +86,11 @@ int main (int argc, char * argv[])
 	}
 	else{
 		printf("create socket \n");
+		//printf("%d\n",sock );
 	}
 	char command[20];
 	char file_name[20];
+	//int command=0;
 	printf("Pick one of the commands\n");
 	printf("get[file_name]\n");
 	printf("put[file_name]\n");
@@ -71,87 +106,28 @@ int main (int argc, char * argv[])
 	 ******************/
 	unsigned int remote_length = sizeof(remote);	
 	nbytes = sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote, sizeof(remote));
-	nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
-	struct sockaddr_in from_addr;
-	int addr_length = sizeof(struct sockaddr);
-	bzero(buffer, sizeof(buffer));
-	int ret;
-	ret = strcmp(command,"get");
-	if (ret ==0){
-		nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &addr_length);  
+	int ret = strcmp(command,"get");
+	if (ret == 0){
+		nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
+		struct sockaddr_in from_addr;
+		int addr_length = sizeof(struct sockaddr);
+		bzero(buffer, sizeof(buffer));
+		nbytes = recvfrom(sock,size,100*sizeof(char),0,(struct sockaddr *)&remote, &addr_length);
+		printf("size of the file to recieve is %s\n",size);
+		int Totalsize = atoi(size);
+		int NoOfPackets = Totalsize/PACKETSIZE;
+		printf("No of packets %d\n",NoOfPackets );
+		//for(int i=0;i<NoOfPackets;i++){
+		filewrite(file_name,sock,remote,Totalsize); 
 		printf("%d\n",nbytes );
-
-	if(nbytes>0){
-		printf("The client didnt says \n");
-	}
-	else{
-		printf("The client sent %s \n ",buffer);
+		if(nbytes>0){
+			printf("The client didnt says \n");
 		}
-	FILE *file;
-	printf("%ld\n", sizeof(buffer) );
-	file=fopen("foo1_trans2","wb");
-	int data= fwrite(buffer,1, sizeof(buffer),file);
-	fclose (file);
-
-	close(sock);
+		else{
+			printf("The client sent  \n ");
+		}
+		close(sock);		
 	}
-	ret=strcmp(command,"put");
-	printf("%d\n",ret );
-	if(ret == 0){
-		FILE *file;
-		char *msg;
-		size_t result;
-		long lSize;
-		file = fopen ( file_name , "rb" );
-  		if (file==NULL) {fputs ("File error",stderr); exit (1);}
-  		fseek (file , 0 , SEEK_END);
-  		lSize = ftell (file);
-  		rewind (file);
-  		msg = (char*) malloc (sizeof(char)*lSize);
-  		if (msg == NULL) {fputs ("Memory error",stderr); exit (2);}
- 		result = fread (msg,1,lSize,file);
-  		if (result != lSize) {fputs ("Reading error",stderr); exit (3);}
-  		printf("%ld\n",lSize );
-		nbytes = sendto(sock,msg,strlen(msg),0,(struct sockaddr *)&remote, sizeof(remote));
-		fclose (file);
-		free (msg);
-		close(sock);
-	}
-	/*ret = strcmp(command,"ls");
-	if (ret == 0){	
-		size_t i = 0, j;
-  		size_t size = 1;
-	 	char msg[100];
-	 	int count=0;
-	 	char **names,**tmp;
-	    DIR *directory;
-  		struct dirent *dir;
 
-  		names = malloc(size * sizeof *names); //Start with 1
-
-  		directory = opendir(".");
-  		if (!directory) { puts("opendir failed"); exit(1); }
-
- 		while ((dir = readdir(directory)) != NULL) {
-     		names[i]=strdup(dir->d_name);
-     		if(!names[i]) { puts("strdup failed."); exit(1); }
-     			i++;
-     		if (i>=size) { // Double the number of pointers
-        		tmp = realloc(names, size*2*sizeof *names );
-        		if(!tmp) { puts("realloc failed."); exit(1); }
-        		else { names = tmp; size*=2;  }
-     		}
-  		}
-  		closedir(directory); 
-  		printf("%s\n",names[0] );
-  		printf("%zu\n",strlen(*names) );
-  		for(int j=0;j<i;j++){
-	    	nbytes = sendto(sock,names[j], 100,0,(struct sockaddr *)&remote, sizeof(remote));  
-	    	printf("%s\n",names[j] );
-	    }
-	    
-	    close(sock);
-		}*/
 }
-
 

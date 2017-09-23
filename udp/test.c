@@ -48,7 +48,7 @@ int main () {
     // opendir() returns a pointer of DIR type. 
   size_t i = 0, j;
   size_t size = 1;
-  char *names , **tmp;
+  char **names , **tmp;
   DIR *directory;
   struct dirent *dir;
 
