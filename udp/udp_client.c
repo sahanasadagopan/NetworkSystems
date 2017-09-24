@@ -37,6 +37,9 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 	FILE *file = fopen(file_name,"rb+");
 	char buffer[Packetsize];
 	int Packetleft =  TotalSize;
+	char seq[20];
+	char s[10]=",";
+	char *token;
 	while(fread(buffer,1,Packetsize,file)){
 		printf("print %zu\n",sizeof(buffer));
 		for(int i=0;i<5000000;i++);
@@ -57,6 +60,16 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 		printf("The packets it sent%d\n",nbytes );
 		count++;
 		sentdata=sentdata+nbytes;
+		nbytes = recvfrom(sock,seq,20,0,(struct sockaddr*)&remote, &remote_length);
+		printf("Acknowledgment packet %s\n",seq );
+		token = strtok(seq,",");
+		printf("The ack only %s\n",token );
+		int i=2;
+		while(i<2){
+			token = strtok(NULL,s);
+			printf("The sequence number of the packet is:%s\n",token );
+			i--;
+		}
 	}
 	fclose(file);
 	return count;
@@ -71,10 +84,20 @@ int filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsiz
 	int recievedpack = 0;
 	int bytesleft=Totalsize;
 	int datasize =1000;
+	int count=0;
+	char seq[20];
 	while(bytesleft!= 0){
 		nbytes = recvfrom(sock,buffer,datasize,0,(struct sockaddr*)&remote, &addr_length);
 		printf("%s\n",buffer );
+		for(int i=0;i<5000000;i++);
 		int data = fwrite(buffer,1,datasize,file);
+		count++;
+		sprintf(seq,"%d",count);
+		char ack[20]="ack";
+		strcat(ack,",");
+		strcat(ack,seq);
+		nbytes = sendto(sock,ack,20,0,(struct sockaddr *)&remote, addr_length);
+		printf("%s\n",ack );
 		recievedpack = recievedpack+datasize;
 		printf("%d\n",recievedpack );
 		int bytesleft=Totalsize-recievedpack;
@@ -173,12 +196,12 @@ int main (int argc, char * argv[])
 		int NoOfPackets = Totalsize/PACKETSIZE;
 		printf("No of packets %d\n",NoOfPackets );
 		int Packetreceived = filewrite(file_name,sock,remote,Totalsize); 
-		if(Packetreceived < NoOfPackets){
+		/*if(Packetreceived < NoOfPackets){
 			filewrite(file_name,sock,remote,Totalsize);
 		}
 		else{
 			nbytes = sendto(sock,"ack",strlen("ack"),0,(struct sockaddr *)&remote, sizeof(remote));
-		}
+		}*/
 		printf("Packet received %d\n",Packetreceived );
 		printf("%d\n",nbytes );
 		close(sock);		
