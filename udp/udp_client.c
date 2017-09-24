@@ -11,44 +11,89 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
+#include <time.h>
+#include <dirent.h>
 
 #define PACKETSIZE 1000
 
-void filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsize){
+void findfilesize(char file_name[20],char size[20]){
+	FILE *f = fopen(file_name, "rb+");
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	sprintf(size,"%lu",fsize);
+	printf("%s\n",size );
+}
+
+int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int TotalSize){
+	int sentdata=0;
+	int nbytes;
+	char msg[PACKETSIZE];
+	unsigned int remote_length;
+	int count=0;
+	remote_length = sizeof(remote);
+	int Packetsize=1000;
+	printf("Packetsize%d\n",Packetsize );
+	FILE *file = fopen(file_name,"rb+");
+	char buffer[Packetsize];
+	int Packetleft =  TotalSize;
+	while(fread(buffer,1,Packetsize,file)){
+		printf("print %zu\n",sizeof(buffer));
+		for(int i=0;i<5000000;i++);
+		nbytes = sendto(sock,buffer,Packetsize,0,(struct sockaddr *)&remote, remote_length);
+		printf("%s\n",buffer );
+		printf("Total buffer %d\n",TotalSize );
+		printf("The amount send%d\n",Packetsize );
+		Packetleft = TotalSize - Packetsize;
+		TotalSize=Packetleft;
+		if(Packetleft<1000){
+			Packetsize=Packetleft;
+		}
+		else{
+			Packetsize=1000;
+		}
+		printf("The amount left %d\n",Packetsize );
+		printf("Packet sent %d\n",count );	
+		printf("The packets it sent%d\n",nbytes );
+		count++;
+		sentdata=sentdata+nbytes;
+	}
+	fclose(file);
+	return count;
+}
+
+int filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsize){
 	int addr_length = sizeof(struct sockaddr);
 	int nbytes;
 	char buffer[PACKETSIZE];
-	//int ret = strcmp(file_name,"foo4");
-	//if(ret == 0){
-		FILE *file;
-		file = fopen("foo4_sent","wb+");
-		int recievedpack = 0;
-		int bytesleft=Totalsize;
-		int datasize =1000;
-		while(bytesleft!= 0){
-			nbytes = recvfrom(sock,buffer,datasize,0,(struct sockaddr*)&remote, &addr_length);
-			printf("%s\n",buffer );
-			int data = fwrite(buffer,1,datasize,file);
-
-			recievedpack = recievedpack+datasize;
-			printf("%d\n",recievedpack );
-			int bytesleft=Totalsize-recievedpack;
-			printf("%d\n",bytesleft );
-			printf("%d\n",Totalsize );
-			if(bytesleft<1000){
-				datasize=bytesleft;	
-			}
-			else{
-				datasize=1000;
-			}
-			
-			if (bytesleft == 0){
-				break;
-				fclose(file);
-			}
+	FILE *file;
+	file = fopen("foo1_sent","wb+");
+	int recievedpack = 0;
+	int bytesleft=Totalsize;
+	int datasize =1000;
+	while(bytesleft!= 0){
+		nbytes = recvfrom(sock,buffer,datasize,0,(struct sockaddr*)&remote, &addr_length);
+		printf("%s\n",buffer );
+		int data = fwrite(buffer,1,datasize,file);
+		recievedpack = recievedpack+datasize;
+		printf("%d\n",recievedpack );
+		int bytesleft=Totalsize-recievedpack;
+		printf("%d\n",bytesleft );
+		printf("%d\n",Totalsize );
+		if(bytesleft<1000){
+			datasize=bytesleft;	
 		}
-		fclose(file);
-	//}
+		else{
+			datasize=1000;
+		}
+		
+		if (bytesleft == 0){
+			break;
+			fclose(file);
+		}
+	}
+	fclose(file);
+	return recievedpack;
 }
 
 int main (int argc, char * argv[])
@@ -57,7 +102,7 @@ int main (int argc, char * argv[])
 	int sock;                               //this will be our socket
 	char buffer[PACKETSIZE];
 	char *size;
-	size = (char*) malloc(100*sizeof(char));
+	size = (char*) malloc(20*sizeof(char));
 	struct sockaddr_in remote;              //"Internet socket address structure"
 
 	if (argc < 3)
@@ -77,7 +122,6 @@ int main (int argc, char * argv[])
 	remote.sin_family = AF_INET;                 //address family
 	remote.sin_port = htons(atoi(argv[2]));      //sets port to network byte order
 	remote.sin_addr.s_addr = inet_addr(argv[1]); //sets remote IP address
-
 	//Causes the system to create a generic socket of type UDP (datagram)
     if ((sock = socket(AF_INET,SOCK_DGRAM,0)) < 0)
 	{
@@ -86,11 +130,9 @@ int main (int argc, char * argv[])
 	}
 	else{
 		printf("create socket \n");
-		//printf("%d\n",sock );
 	}
 	char command[20];
 	char file_name[20];
-	//int command=0;
 	printf("Pick one of the commands\n");
 	printf("get[file_name]\n");
 	printf("put[file_name]\n");
@@ -98,7 +140,20 @@ int main (int argc, char * argv[])
 	printf("ls\n");
 	printf("exit\n");
 	printf("Type your command and file name ");
-    scanf(" %s %s", command,file_name);
+    scanf(" %s", command);
+    int ret = strcmp(command,"get");
+    if(ret ==0) {
+    	scanf("%s",file_name);
+    }
+    ret = strcmp(command,"put");
+    if(ret == 0){
+    	scanf("%s",file_name);
+    }
+    ret = strcmp(command,"delete");
+    if(ret == 0){
+    	scanf("%s",file_name);
+    }
+    
 	/******************
 	  sendto() sends immediately.  
 	  it will report an error if the message fails to leave the computer
@@ -106,28 +161,62 @@ int main (int argc, char * argv[])
 	 ******************/
 	unsigned int remote_length = sizeof(remote);	
 	nbytes = sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote, sizeof(remote));
-	int ret = strcmp(command,"get");
+	ret = strcmp(command,"get");
 	if (ret == 0){
-		nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
+		nbytes = sendto(sock,file_name,20,0,(struct sockaddr *)&remote, sizeof(remote));
 		struct sockaddr_in from_addr;
 		int addr_length = sizeof(struct sockaddr);
 		bzero(buffer, sizeof(buffer));
-		nbytes = recvfrom(sock,size,100*sizeof(char),0,(struct sockaddr *)&remote, &addr_length);
+		nbytes = recvfrom(sock,size,20,0,(struct sockaddr *)&remote, &addr_length);
 		printf("size of the file to recieve is %s\n",size);
 		int Totalsize = atoi(size);
 		int NoOfPackets = Totalsize/PACKETSIZE;
 		printf("No of packets %d\n",NoOfPackets );
-		//for(int i=0;i<NoOfPackets;i++){
-		filewrite(file_name,sock,remote,Totalsize); 
-		printf("%d\n",nbytes );
-		if(nbytes>0){
-			printf("The client didnt says \n");
+		int Packetreceived = filewrite(file_name,sock,remote,Totalsize); 
+		if(Packetreceived < NoOfPackets){
+			filewrite(file_name,sock,remote,Totalsize);
 		}
 		else{
-			printf("The client sent  \n ");
+			nbytes = sendto(sock,"ack",strlen("ack"),0,(struct sockaddr *)&remote, sizeof(remote));
 		}
+		printf("Packet received %d\n",Packetreceived );
+		printf("%d\n",nbytes );
 		close(sock);		
 	}
-
+	ret = strcmp(command,"put");
+	if (ret == 0){
+		int addr_length = sizeof(struct sockaddr);
+		nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
+		findfilesize(file_name,size);
+		nbytes = sendto(sock,size,strlen(size),0,(struct sockaddr *)&remote, addr_length);
+		int Totalsize  = atoi(size);
+		int NoOfPackets = Totalsize/PACKETSIZE;
+		printf("Size to put%d\n",Totalsize);
+		int packetsent=filereadsend(file_name,sock,remote,Totalsize);
+		printf("The packets sent %d\n",packetsent);
+		if (packetsent<NoOfPackets){
+			filereadsend(file_name,sock,remote,Totalsize);
+		}
+		close(sock);
+	}
+	ret = strcmp(command , "ls");
+	if(ret == 0){
+		int addr_length = sizeof(struct sockaddr);
+		nbytes = recvfrom(sock,size,100*sizeof(char),0,(struct sockaddr *)&remote, &addr_length);
+		printf("%s\n",size );
+		int NoOffiles =  atoi(size);
+		while(NoOffiles != 0){
+			nbytes = recvfrom(sock,buffer,100*sizeof(char),0,(struct sockaddr*)&remote, &addr_length);
+			printf("%s\n", buffer);
+			NoOffiles--;
+		}
+		close(sock);
+	}
+	ret = strcmp(command,"delete");
+	if(ret == 0){
+		char *closing;
+		nbytes = sendto(sock,file_name,20,0,(struct sockaddr *)&remote, sizeof(remote));
+		close(sock);
+	}
 }
 
