@@ -35,10 +35,19 @@ int filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsiz
 	int recievedpack = 0;
 	int bytesleft=Totalsize;
 	int datasize =1000;
+	int count=0;
+	char seq[20];
 	while(bytesleft!= 0){
 		nbytes = recvfrom(sock,buffer,datasize,0,(struct sockaddr*)&remote, &addr_length);
 		printf("%s\n",buffer );
 		int data = fwrite(buffer,1,datasize,file);
+		count++;
+		sprintf(seq,"%d",count);
+		char ack[20]="ack";
+		strcat(ack,",");
+		strcat(ack,seq);
+		nbytes = sendto(sock,ack,20,0,(struct sockaddr *)&remote, addr_length);
+		printf("%s\n",ack );
 		recievedpack = recievedpack+datasize;
 		printf("%d\n",recievedpack );
 		int bytesleft=Totalsize-recievedpack;
@@ -64,6 +73,7 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 	int sentdata=0;
 	int nbytes;
 	char msg[MAXBUFSIZE];
+	char seq[20];
 	unsigned int remote_length;
 	int count=0;
 	remote_length = sizeof(remote);
@@ -72,9 +82,10 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 	FILE *file = fopen(file_name,"rb+");
 	char buffer[Packetsize];
 	int Packetleft =  TotalSize;
+	char *token;
+	char s[10]=",";
 	while(fread(buffer,1,Packetsize,file)){
 		printf("print %zu\n",sizeof(buffer));
-		for(int i=0;i<5000000;i++);
 		nbytes = sendto(sock,buffer,Packetsize,0,(struct sockaddr *)&remote, remote_length);
 		printf("%s\n",buffer );
 		printf("Total buffer %d\n",TotalSize );
@@ -89,9 +100,19 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 		}
 		printf("The amount left %d\n",Packetsize );
 		printf("Packet sent %d\n",count );	
-		printf("The packets it sent%d\n",nbytes );
-		count++;
+		printf("The packets it sent %d\n",nbytes );
 		sentdata=sentdata+nbytes;
+		count++;
+		nbytes = recvfrom(sock,seq,20,0,(struct sockaddr*)&remote, &remote_length);
+		printf("Acknowledgment packet %s\n",seq );
+		token = strtok(seq,",");
+		printf("The ack only %s\n",token );
+		int i=2;
+		while(i<2){
+			token = strtok(NULL,s);
+			printf("The sequence number of the packet is:%s\n",token );
+			i--;
+		}
 	}
 	fclose(file);
 	return count;
@@ -166,12 +187,12 @@ int main (int argc, char * argv[] )
 		printf("No of packets to send %d\n",NoOfPackets );
 		int Packetsent=filereadsend(file_name,sock,remote,TotalSize);
 		printf("The number of packet sent %d \n",Packetsent);
- 		if((Packetsent-1)<NoOfPackets){
+ 		/*if((Packetsent-1)<NoOfPackets){
  			filereadsend(file_name,sock,remote,TotalSize);
  		}
  		else{
  			nbytes = recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote, &remote_length);
- 		}
+ 		}*/
 		close(sock);
 	}
 	ret = strcmp(buffer,"put");
@@ -191,13 +212,13 @@ int main (int argc, char * argv[] )
 		printf("No of packets %d\n",NoOfPackets );
 		int packet_recieved=filewrite(file_name,sock,remote,Totalsize);
 		printf("THe packets got %d\n",packet_recieved );
-		if (packet_recieved < NoOfPackets ){
+		/*if (packet_recieved < NoOfPackets ){
 			filewrite(file_name,sock,remote,Totalsize);
 		}
 		else{
 			char *acknowledgment;
 			nbytes = recvfrom(sock,acknowledgment,strlen(acknowledgment),0,(struct sockaddr *)&remote, &remote_length);
-		}
+		}*/
 		close(sock);
 	}
 	ret = strcmp(buffer , "ls");
