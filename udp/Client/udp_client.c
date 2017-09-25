@@ -349,6 +349,7 @@ int main (int argc, char * argv[])
 	**/
 	ret = strcmp(command,"delete");
 	if(ret == 0){
+		unsigned int addr_length = sizeof(struct sockaddr);
 		nbytes = sendto(sock,file_name,20,0,(struct sockaddr *)&remote, sizeof(remote));
 		check = (char *)malloc(20*(sizeof(char)));
 		nbytes = recvfrom(sock,check,20,0,(struct sockaddr *)&remote, &addr_length);
@@ -359,7 +360,7 @@ int main (int argc, char * argv[])
 			close(sock);
 		}
 		nbytes = recvfrom(sock,check,20,0,(struct sockaddr *)&remote, &addr_length);
-		ret = strcmp(check,"Deleted Successfully")
+		ret = strcmp(check,"Deleted Successfully");
 		if (ret == 0){
 			printf("Deleted the requested file\n");
 		}
