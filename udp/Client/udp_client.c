@@ -1,3 +1,20 @@
+/***********************************************************************************************
+* Copyright (C) 2017 Sahana Sadagopan
+*
+**Redistribution,modification or use of this software in source or binary fors is permitted as long 
+*as the files maintain this copyright.Sahana Sadagopan is not liable for any misuse of this material
+*
+*********************************************************************************************************/
+/**
+*@file udp_client.c
+*@brief udp_client implementation
+*
+*This C file provides how to implement UDP client
+*@author Sahana Sadagopan
+*@date September 2017
+*@version 1.0
+*
+**/
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -16,6 +33,12 @@
 
 #define PACKETSIZE 1000
 
+/**************************************************************************
+*   Function - findfilesize
+*   Parameters - file_name an size 
+*   Returns - void
+*   Purpose - It calculates the size of the file given the name of the file
+**************************************************************************/
 void findfilesize(char file_name[20],char size[20]){
 	FILE *f = fopen(file_name, "rb+");
 	fseek(f, 0, SEEK_END);
@@ -24,6 +47,13 @@ void findfilesize(char file_name[20],char size[20]){
 	sprintf(size,"%lu",fsize);
 	printf("%s\n",size );
 }
+
+/**************************************************************************
+*   Function - decryptdata
+*   Parameters - buffer pointer, datasize, decryptbuffer pointer
+*   Returns - void
+*   Purpose - The decryption of the encoded buffer
+**************************************************************************/
 
 void decryptdata(char *buffer, int datasize, char *decryptbuff){
 	char encryptedkey[14] = {'A','B','C','D','E','F','G','H','I','1','2','3','4','5'};
@@ -37,6 +67,13 @@ void decryptdata(char *buffer, int datasize, char *decryptbuff){
 	}
 }
 
+/**************************************************************************
+*   Function - encrypdata
+*   Parameters - input buffer pointer, packet size , encrypted buffer 
+*   Returns - void
+*   Purpose - The functions encrypts the data through ceaser cipher technique
+**************************************************************************/
+
 void encryptdata(char *buffer,int Packetsize,char *encryptedbuff){
 	char encryptedkey[14] = {'A','B','C','D','E','F','G','H','I','1','2','3','4','5'};
 	int j=0;
@@ -48,6 +85,13 @@ void encryptdata(char *buffer,int Packetsize,char *encryptedbuff){
 		}
 	}
 }
+
+/**************************************************************************
+*   Function - filereadsend
+*   Parameters - file name, socket, struct of sock, buffer size 
+*   Returns - int packet sent
+*   Purpose - It reads the file request by the client and sends to the server
+**************************************************************************/
 
 int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int TotalSize){
 	int sentdata=0;
@@ -88,6 +132,13 @@ int filereadsend(char file_name[20],int sock,struct sockaddr_in remote,int Total
 	fclose(file);
 	return count;
 }
+
+/**************************************************************************
+*   Function - filewrite
+*   Parameters - char filename, sock, sock structure, total buffer size 
+*   Returns - int no of packets recieved
+*   Purpose - recieves the data and write it into a file on the client side
+**************************************************************************/
 
 int filewrite(char file_name[20],int sock,struct sockaddr_in remote,int Totalsize){
 	unsigned int addr_length = sizeof(struct sockaddr);
@@ -152,9 +203,6 @@ int main (int argc, char * argv[])
 		printf("USAGE:  <server_ip> <server_port>\n");
 		exit(1);
 	}
-
-
-
 	/******************
 	  Here we populate a sockaddr_in struct with
 	  information regarding where we'd like to send our packet 
@@ -195,13 +243,20 @@ int main (int argc, char * argv[])
     if(ret == 0){
     	scanf("%s",file_name);
     }
-    
 	/******************
 	  sendto() sends immediately.  
 	  it will report an error if the message fails to leave the computer
 	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
 	 ******************/	
 	nbytes = sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote, sizeof(remote));
+	/**
+	* This compares the command by the client 
+	* incase the command is get the function send the filename from the server
+	* it returns the check from the server if the file exist.
+	* If the file doesnt exist close the socket. Checks if the nbytes are recieved 
+	* properly. If the packets aren't recieved properly tells the server to send
+	* again
+	**/
 	ret = strcmp(command,"get");
 	if (ret == 0){
 		nbytes = sendto(sock,file_name,20,0,(struct sockaddr *)&remote, sizeof(remote));
@@ -212,6 +267,7 @@ int main (int argc, char * argv[])
 		printf("%s\n",check);
 		ret = strcmp(check,"File not found");
 		if(ret == 0){
+			printf("Please type a valid file name\n");
 			close(sock);
 		}
 		nbytes = recvfrom(sock,size,20,0,(struct sockaddr *)&remote, &addr_length);
@@ -230,10 +286,31 @@ int main (int argc, char * argv[])
 		printf("%d\n",nbytes );
 		close(sock);		
 	}
+
+	/**
+	* This compares the command by the client request.
+	* Incase the request by the client is 'put' the following is executed.
+	* It sends a file to the server. If the file doesnt exist in the folder
+	* it throws an error and closes the socket.
+	* It checks the case if the nbytes are sent properly.
+	* The reliability is checked if all the packets are not lost then send again
+	**/
+
+
 	ret = strcmp(command,"put");
 	if (ret == 0){
 		unsigned int addr_length = sizeof(struct sockaddr);
 		nbytes = sendto(sock,file_name,strlen(file_name),0,(struct sockaddr *)&remote, sizeof(remote));
+		if(access(file_name,R_OK|W_OK|X_OK) != 0){
+			printf("File doesnt exist you will get a segmentation fault\n");
+			check = "File not found";
+			sendto(sock,check,20,0,(struct sockaddr *)&remote, addr_length);
+		}
+		else{
+			printf("The file exist in this Folder\n");
+			check = "file Found";
+			sendto(sock,check,20,0,(struct sockaddr *)&remote, addr_length);
+		}
 		findfilesize(file_name,size);
 		nbytes = sendto(sock,size,strlen(size),0,(struct sockaddr *)&remote, addr_length);
 		int Totalsize  = atoi(size);
@@ -249,6 +326,9 @@ int main (int argc, char * argv[])
 		}
 		close(sock);
 	}
+	/**
+	This gets all the file names in the folder from the server.
+	**/
 	ret = strcmp(command , "ls");
 	if(ret == 0){
 		unsigned int addr_length = sizeof(struct sockaddr);
@@ -262,10 +342,45 @@ int main (int argc, char * argv[])
 		}
 		close(sock);
 	}
+	/**
+	* Delete the files if it exist with the server.
+	* if the files are not present in the server folder it returns an
+	* error to the client.
+	**/
 	ret = strcmp(command,"delete");
 	if(ret == 0){
 		nbytes = sendto(sock,file_name,20,0,(struct sockaddr *)&remote, sizeof(remote));
+		check = (char *)malloc(20*(sizeof(char)));
+		nbytes = recvfrom(sock,check,20,0,(struct sockaddr *)&remote, &addr_length);
+		printf("%s\n",check);
+		ret = strcmp(check,"File not found");
+		if(ret == 0){
+			printf("Please type a valid file name\n");
+			close(sock);
+		}
+		nbytes = recvfrom(sock,check,20,0,(struct sockaddr *)&remote, &addr_length);
+		ret = strcmp(check,"Deleted Successfully")
+		if (ret == 0){
+			printf("Deleted the requested file\n");
+		}
+		else{
+			printf("Could not delete the file \n");
+		}
 		close(sock);
+	}
+	/*
+	*The client exit and closes the socket automatically expecting the server
+	* to close the socket
+	*/
+	ret = strcmp(command,"exit");
+	if (ret == 0){
+		int terminate=close(sock);
+		if(terminate == 0){
+			printf("server has exited %d\n",terminate );
+		}
+		else
+			printf("cannot exit  %d\n",terminate);
+
 	}
 }
 
