@@ -366,14 +366,14 @@ int main (int argc, char * argv[] )
 	if (ret == 0){
 		nbytes = recvfrom(sock,file_name,20,0,(struct sockaddr *)&remote,&remote_length);
 		printf("%s\n",file_name );
-		if(access(file_name,R_OK|W_OK|X_OK) != 0){
-			printf("File doesnt exist you will get a segmentation fault\n");
-			check = "File not found";
+		if(access(file_name,R_OK|W_OK|X_OK) != 1){
+			printf("The file exist in this Folder\n");
+			check = "file Found";
 			sendto(sock,check,20,0,(struct sockaddr *)&remote, remote_length);
 		}
 		else{
-			printf("The file exist in this Folder\n");
-			check = "file Found";
+			printf("File doesnt exist you will get a segmentation fault\n");
+			check = "File not found";
 			sendto(sock,check,20,0,(struct sockaddr *)&remote, remote_length);
 		}
 		if(remove(file_name) == 0){
