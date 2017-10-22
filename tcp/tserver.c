@@ -23,7 +23,7 @@
 
 int listenfd, clients[CONNMAX];
 void error(char *);
-void startServer(char *);
+void startServer(char *,int );
 void respond(int);
 
 //FILE *conf;
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     	conffile = strtok(NULL,"\n");
     	ROOT = conffile;
     }
-	fprintf(stdout,"Server started at port no. %s ",PORT);
+	//fprintf(stdout,"Server started at port no. %s ",PORT);
 	
 	int slot=0;
 	
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 	int i;
 	for (i=0; i<CONNMAX; i++)
 		clients[i]=-1;
-	startServer(PORT);
+	startServer(PORT,slot);
 	// ACCEPT connections
 	while (1)
 	{
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
 }
 
 //start server
-void startServer(char *port)
+void startServer(char *port,int n)
 {
 	struct addrinfo hints, *res, *p;
 
@@ -110,6 +110,7 @@ void startServer(char *port)
 	}
 	if (p==NULL)
 	{
+		//write(clients[n],"HTTP/1.1 500 Internal Server Error: Cannot alllocate memory\n\n",strlen("HTTP/1.1 500 Internal Server Error: Cannot alllocate memory\n\n"));
 		perror ("socket() or bind()");
 		exit(1);
 	}
@@ -130,9 +131,8 @@ void startServer(char *port)
 void respond(int n)
 {
 	char mesg[99999], *reqline[5], data_to_send[BYTES], path[99999],buf[8192];
-	int rcvd, fd, bytes_read,lsize;
-	int Packetsize=50000,nbytes;
-	size_t readbuf;
+	int rcvd, fd, bytes_read;
+	int Packetsize=50000;
     char buffer[Packetsize];
     
 	memset( (void*)mesg, (int)'\0', 99999 );
@@ -142,7 +142,7 @@ void respond(int n)
 		fprintf(stderr,("recv() error\n"));
 	else    // message received
 	{
-		fprintf(stdout,"%s", mesg);
+		//fprintf(stdout,"%s", mesg);
 		reqline[0] = strtok (mesg, " \t\n");
 		if ( strncmp(reqline[0], "GET\0", 4)==0 )
 		{
@@ -151,100 +151,105 @@ void respond(int n)
 			if ( strncmp( reqline[2], "HTTP/1.0", 8)!=0 && strncmp( reqline[2], "HTTP/1.1", 8)!=0 )
 			{
 				write(clients[n], "HTTP/1.0 400 Bad Request\n", 25);
+				write(clients[n],"<html><body> Bad Request Reason: Invalid Method:<<request method>></body></html>",strlen("<html><body> Bad Request Reason: Invalid Method:<<request method>></body></html>"));
 			}
 			else
 			{
 				if ( strncmp(reqline[1], "/\0", 2)==0 ){
+					//if(strstr(array[5],"DirectoryIndex")){
+					conffile = strtok(array[5]," ");
+					conffile = strtok(NULL,"\n");
+					//}
 					reqline[1] = "/index.html";        //Because if no file is specified, index.html will be opened by default (like it happens in APACHE...
-					FILE *filee = fopen("index.html","rb");
+					FILE *filee = fopen(conffile,"rb");
 				    fseek(filee, 0, SEEK_END);
 				    int fsize = ftell(filee);
 				    fseek(filee, 0, SEEK_SET);
-				    int count=0;
-				    fclose(filee);
-				    sprintf(buf,"HTTP/1.1 200 Document Follows\r\nContent-Type: text/html\r\nContent-Length: 3391\n\n");//34180
+				    sprintf(buf,"HTTP/1.1 200 Document Follows\r\nContent-Type: text/html\r\nContent-Length: %d\n\n",fsize);//34180
 				   
 				    write(clients[n], buf, strlen(buf));                  
-				    FILE *file = fopen("index.html","rb");
-				    while(fread(buffer,1,Packetsize,file))
+				    //FILE *file = fopen("index.html","rb");
+				    while(fread(buffer,1,Packetsize,filee))
 				    {
-				        nbytes = write(clients[n], buffer,3391);
+				        write(clients[n], buffer,3391);
 				    }
+				    fclose(filee);
 				}
 				else{
 					strcpy(path, ROOT);
-				strcpy(&path[strlen(ROOT)], reqline[1]);
+					strcpy(&path[strlen(ROOT)], reqline[1]);
 
-				if ( (fd=open(path, O_RDONLY))!=-1 )    //FILE FOUND
-				{
-					FILE *fp= fopen(path,"rb");
-					fseek(fp, 0, SEEK_END);
-				    int fsize = ftell(fp);
-				    fseek(fp, 0, SEEK_SET);
-				    fclose(fp);
-				    char content_type;
-					char *parsing = reqline[1];
-					reqline[3]=strtok(parsing,".");
-					reqline[4]=strtok(NULL," \t\n");
-					char *type = reqline[4];
-					if(strcmp(type,"png")==0){
-						if(strstr(array[13],".png")){
-							conffile=strtok(array[13]," ");
-							conffile=strtok(NULL,"\n");
-							//printf("%s\n",conffile );
+					if ( (fd=open(path, O_RDONLY))!=-1 )    //FILE FOUND
+					{
+						FILE *fp= fopen(path,"rb");
+						fseek(fp, 0, SEEK_END);
+					    int fsize = ftell(fp);
+					    fseek(fp, 0, SEEK_SET);
+					    fclose(fp);
+						char *parsing = reqline[1];
+						reqline[3]=strtok(parsing,".");
+						reqline[4]=strtok(NULL," \t\n");
+						char *type = reqline[4];
+						if(strcmp(type,"png")==0){
+							if(strstr(array[13],".png")){
+								conffile=strtok(array[13]," ");
+								conffile=strtok(NULL,"\n");
+								//printf("%s\n",conffile );
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
-					}
-					if(strcmp(type,"jpg")==0){
-						if(strstr(array[11],".jpg")){
-							conffile=strtok(array[11]," ");
-							conffile=strtok(NULL,"\n");
+						if(strcmp(type,"jpg")==0){
+							if(strstr(array[11],".jpg")){
+								conffile=strtok(array[11]," ");
+								conffile=strtok(NULL,"\n");
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
-					}
-							
-					if(strcmp(type,"html")==0){
-						if(strstr(array[7],".html")){
-							conffile=strtok(array[7]," ");
-							conffile=strtok(NULL,"\n");
+								
+						if(strcmp(type,"html")==0){
+							if(strstr(array[7],".html")){
+								conffile=strtok(array[7]," ");
+								conffile=strtok(NULL,"\n");
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
-					}
-							
-					if(strcmp(type,"txt")==0){
-						if(strstr(array[9],".txt")){
-							conffile=strtok(array[9]," ");
-							conffile=strtok(NULL,"\n");
-							//printf("%s\n",conffile );
+								
+						if(strcmp(type,"txt")==0){
+							if(strstr(array[9],".txt")){
+								conffile=strtok(array[9]," ");
+								conffile=strtok(NULL,"\n");
+								//printf("%s\n",conffile );
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
-					}
-							
-					if(strcmp(type,"htm")==0){
-						if(strstr(array[8],".htm")){
-							conffile=strtok(array[8]," ");
-							conffile=strtok(NULL,"\n");
-							//printf("%s\n",conffile );
+								
+						if(strcmp(type,"htm")==0){
+							if(strstr(array[8],".htm")){
+								conffile=strtok(array[8]," ");
+								conffile=strtok(NULL,"\n");
+								//printf("%s\n",conffile );
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
-					}
-							
-					if(strcmp(type,"gif")==0){
-						if(strstr(array[10],".gif")){
-							conffile=strtok(array[10]," ");
-							conffile=strtok(NULL,"\n");
-							//printf("%s\n",conffile );
+								
+						if(strcmp(type,"gif")==0){
+							if(strstr(array[10],".gif")){
+								conffile=strtok(array[10]," ");
+								conffile=strtok(NULL,"\n");
+								//printf("%s\n",conffile );
+							}
+							reqline[5] = conffile;
 						}
-						reqline[5] = conffile;
+						sprintf(buf,"HTTP/1.1 200 Document Follows\r\nContent-Type: %s\r\nContent-Length: %d\n\n",reqline[5],fsize);
+						write(clients[n], buf, strlen(buf));
+						write(clients[n],"Content-Length: %d \n\n",fsize);
+						while ( (bytes_read=read(fd, data_to_send, BYTES))>0 )
+							write (clients[n], data_to_send, bytes_read);
 					}
-					sprintf(buf,"HTTP/1.1 200 Document Follows\r\nContent-Type: %s\r\nContent-Length: %d\n\n",reqline[5],fsize);
-					write(clients[n], buf, strlen(buf));
-					write(clients[n],"Content-Length: %d \n\n",fsize);
-					while ( (bytes_read=read(fd, data_to_send, BYTES))>0 )
-						write (clients[n], data_to_send, bytes_read);
-				}
-				else    write(clients[n], "HTTP/1.0 404 Not Found\n", 23); //FILE NOT FOUND
-
+					else{
+						write(clients[n], "HTTP/1.1 501 Not Implemented\n\n", 30); //FILE NOT FOUND
+						write(clients[n],"<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n",strlen("<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n"));
+					}    
 				}
 			}
 		}
