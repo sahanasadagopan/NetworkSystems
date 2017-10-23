@@ -118,24 +118,56 @@ void Server(char *port,int n)
 //client connection
 void respond(int n)
 {
-	char mesg[100000], *request[5], data_to_send[BYTES], path[10000],buf[10000];
-	int rcvd, fd, bytes_read;
-	int Packetsize=50000;
+	char mesg[100000], *request[5],*putreq[5],*postarray[200],put[100],putsub[10000],data_to_send[BYTES], path[10000],buf[10000];
+	int rcvd, fd, bytes_read,i=1;
+	int Packetsize=50000,len,length =0;;
     char buffer[Packetsize];
     
 	memset( (void*)mesg, (int)'\0', 100000 );
 	rcvd=recv(reciever[n], mesg, 100000, 0);
-
+	strcpy(put,mesg);
+	strcpy(putsub,put);
+	len = strlen(putsub);
+	printf("size of header %d\n",len );
+	printf("copied message %s\n",put );
 	if (rcvd<0)    // receive error
 		fprintf(stderr,("recv() error\n"));
 	else    // message received
 	{
-		fprintf(stdout,"%s", mesg);
+		fprintf(stdout,"%s\n", mesg);
 		request[0] = strtok (mesg, " \t\n");
-		if ( strncmp(request[0], "GET\0", 4)==0 )
+		//strcpy(putreq[0],request[0]);
+		//printf("put 1 is the whole%s\n",putreq[0] );
+		fprintf(stdout, "request %s\n", request[0]);
+		if ( strncmp(request[0], "GET\0", 4)==0 || strncmp(request[0],"POST\0",5)==0)
 		{
 			request[1] = strtok (NULL, " \t");
 			request[2] = strtok (NULL, " \t\n");
+			putreq[0] = strtok (put, " \n");
+
+			printf("*****************************%s\n",putreq[0] );
+			if(strncmp(putreq[0],"POST\0",5)==0){
+				printf("put 3 \n" );
+				putreq[1]=strtok(putsub,"\n");
+				postarray[0]=putreq[1];
+				//putreq[2]=strlen(putreq[0]);
+				printf("post aray%s\n",postarray[0] );
+				while(putreq[1] != NULL){
+					putreq[1]=strtok(NULL,"\n");
+					postarray[i]=putreq[1];
+					i++;
+					printf("put 1 %s\n",postarray[14] );
+					//printf("size of postman %s\n",putreq[2] );
+				}
+				//int k= 13;
+				
+				for(int k =13;k<17;k++){
+					length = length + strlen(postarray[k]);
+					printf("content length only%d\n",length );
+				}
+				//printf("size of postman %s\n",putreq[2] );
+
+			}
 			if ( strncmp( request[2], "HTTP/1.0", 8)!=0 && strncmp( request[2], "HTTP/1.1", 8)!=0 )
 			{
 				write(reciever[n], "HTTP/1.0 400 Bad Request\n", 25);
@@ -213,7 +245,7 @@ void respond(int n)
 							if(strstr(array[9],".txt")){
 								conffile=strtok(array[9]," ");
 								conffile=strtok(NULL,"\n");
-								printf("%s\n",conffile );
+								//printf("%s\n",conffile );
 							}
 							request[5] = conffile;
 						}
@@ -237,13 +269,43 @@ void respond(int n)
 						}
 						sprintf(buf,"HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %d\n\n",request[5],fsize);
 						write(reciever[n], buf, strlen(buf));
+						printf("comparing and post req%s\n",putreq[0] );
+						int j=13;
+						if(strncmp(putreq[0],"POST\0",5)==0){
+							write(reciever[n],"<html><body><pre><h1>",strlen("<html><body><pre><h1>"));
+							while(j<(i-1)){
+								sprintf(buf,"%s",postarray[j]);
+								write(reciever[n],buf,strlen(buf));
+								printf("%zu\n",strlen(buf));
+								printf("set header part1%s\n",postarray[j]);
+								j++;
+							}
+							write(reciever[n],"</h1></pre></body></html>\n\n",strlen("</h1></pre></body></html>\n\n"));
+						}
 						//write(reciever[n],"Content-Length: %d \n\n",fsize);
 						while ( (bytes_read=read(fd, data_to_send, BYTES))>0 )
 							write (reciever[n], data_to_send, bytes_read);
 					}
 					else{
-						write(reciever[n], "HTTP/1.1 501 Not Implemented\n\n", 30); //FILE NOT FOUND
-						write(reciever[n],"<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n",strlen("<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n"));
+						if(strncmp(putreq[0],"POST\0",5)==0){
+							len = 46+length;
+							sprintf(buf,"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %d\n\n",len);
+							write(reciever[n], buf, strlen(buf));
+							printf("no of times go into loop %d\n",i );
+							int j=13;
+							write(reciever[n],"<html><body><pre><h1>",strlen("<html><body><pre><h1>"));
+							while(j<(i-1)){
+								sprintf(buf,"%s",postarray[j]);
+								write(reciever[n],buf,strlen(buf));
+								printf("%zu\n",strlen(buf));
+								printf("set header part1%s\n",postarray[j]);
+								j++;
+							}
+							write(reciever[n],"</h1></pre></body></html>\n\n",strlen("</h1></pre></body></html>\n\n"));
+						}else{
+							write(reciever[n], "HTTP/1.1 501 Not Implemented\n\n", 30); //FILE NOT FOUND
+							write(reciever[n],"<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n",strlen("<other-headers>\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>\n\n"));
+						}
 					}    
 				}
 			}
