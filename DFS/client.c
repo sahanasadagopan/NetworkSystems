@@ -13,8 +13,9 @@
 //global//
 char *parts[100];
 char *broken;
+char store[8][MAXLIST];
 int array[20];
-int j=0;
+int j=0,n=1;
 int create_sock(int n,char* port){
     printf("value of port connecting%s\n",port );
     int sock[4];
@@ -163,29 +164,35 @@ check_t enquire_filelist(int sock){
     return SUCCESS;
 }
 
-check_t store_list(int sock,char store[8][MAXLIST],int n){
+check_t store_list(int sock){
     char recvlist[20];
     int recv_byte;
-    int j=0;
-    while(j<2){
+    int loop=0;
+    while(loop<2){
         if(recv_byte=recv(sock,recvlist,20,0)<0){
             printf("recv error in file parts name\n");
         }
-        if(j==0){
+        if(loop==0){
             strcpy(store[n-1],recvlist);
+            printf("%d %s\n",n-1,store[n-1] );
         }
-        if(j==1){
+        if(loop==1){
             strcpy(store[n],recvlist);
+            printf("%d %s\n",n,store[n] );
         }
-        printf("%s\n",store[j] );
-        j++;
+
+        loop++;
     }
+    
+    //printf("%d\n",n );
+    printf("2nd %s\n",store[0] );
+    printf("1st%s\n",store[n-1] );
+    n=n+2;
 }
 
 int main(int argc , char *argv[])
 {
     int sock[4];
-    char store[3][20];
     int count1=0,count2=0,count3=0,count4=0;
     char message[100000] , server_reply[2000],command[20],filename[20],size[10];
     FILE *fp; 
@@ -330,54 +337,214 @@ int main(int argc , char *argv[])
 
     if(strcmp(command,"GET")==0){
         printf("requesting servers.................\n");
-        int i=1,k=0;
+        int k=0,count1=0,count2=0,count3=0,count4=0,k1,k2,k3;
         FILE *recreate;
-        char store[4][MAXLIST],serversize[20],serverfile[1000];
-        store_list(sock[0],store,i);
+        char serversize[20],serverfile[1000];
+        printf("%d\n",sock[0] );
+        store_list(sock[0]);
+        printf("%d\n",sock[0] );
         printf("Server 1 done\n");
-        i+2;
-        printf("%d\n",i );
-        store_list(sock[1],store,i);
+        store_list(sock[1]);
         printf("Server 2 done\n");
-        i+2;
-        store_list(sock[2],store,i);
+        store_list(sock[2]);
         printf("Server 3 done\n");
-        i+2;
-        store_list(sock[3],store,i);
+        store_list(sock[3]);
         printf("Server 4 done\n");
-        recreate=fopen("recieved","w");
-        /*for(int i=0;i<8;i++){
+        recreate=fopen("recieved","w+");
+        for(int i=0;i<8;i++){
+            printf("in loop %s\n",store[i] );
             if(i<2){
-               j=0; 
+               k=0; 
             }
                 
-            if(1<i<4){
+            else if(1<i<4){
                 k=1;
             }
-            if(3<i<6){
+            else if(3<i<6){
                 k=2;
             }
-            if(5<j<8){
+            else if(5<i<8){
                 k=3;
             }
-            if(strcmp(store[i],".1")==0){
-                printf("%s\n",store[i] );
-                printf("%d\n",i );
-                if((send(sock[k],store[i],20,0))<0){
+            if(strstr(store[i],".1")){
+                count1++;
+                printf("right servers%d\n",k );
+                printf("filename %s\n",store[i] );
+                printf("The number %d\n",sock[0] );
+                printf("%d\n",k );
+                if((send(sock[k],store[i],100,0))<0){
                     puts("Send failed");
                     return 1;   
                 }
-                if((recv(sock[i],serversize,20,0))<0){
+                printf("Finished send\n");
+                printf("%d\n",k );
+                if((recv(sock[k],serversize,20,0))<0){
                     printf("Send error in file\n");
                 }
-                printf("%s\n",serversize );
+                printf("server size%s\n",serversize );
                 int partsize=atoi(serversize);
-                if((recv(sock[i],serverfile,partsize,0))<0){
+                if((recv(sock[k],serverfile,partsize,0))<0){
                     printf("Send error in file\n");
                 }
                 printf("%s\n",serverfile );
+                fwrite(serverfile,partsize,1,recreate);
+
             }
-        }*/
+            if(count1>0){
+                break;
+            }
+        }
+
+        for(int i2=0;i2<8;i2++){
+            printf("in loop %s\n",store[i2] );
+            if(i2<2){
+               k1=0; 
+            }
+                
+            else if(1<i2<4){
+                k1=1;
+            }
+            else if(3<i2<6){
+                k1=2;
+            }
+            else if(5<i2<8){
+                k1=3;
+            }
+            if(k1==k){
+                printf("OLD server\n");
+                i2++;
+            }
+            if(strstr(store[i2],".2")){
+                count2++;
+                printf("right servers%d\n",k );
+                printf("right servers%d\n",k1 );
+                printf("filename %s\n",store[i2] );
+                printf("The number %d\n",sock[0] );
+                printf("%d\n",k1 );
+                if((send(sock[k1],store[i2],100,0))<0){
+                    puts("Send failed");
+                    return 1;   
+                }
+                printf("Finished send\n");
+                printf("%d\n",k1 );
+                if((recv(sock[k1],serversize,20,0))<0){
+                    printf("Send error in file\n");
+                }
+                printf("server size%s\n",serversize );
+                int partsize=atoi(serversize);
+                if((recv(sock[k1],serverfile,partsize,0))<0){
+                    printf("Send error in file\n");
+                }
+                printf("%s\n",serverfile );
+                fwrite(serverfile,partsize,1,recreate);
+
+            }
+            if(count2>0){
+                break;
+            }
+        }
+
+        for(int i3=0;i3<8;i3++){
+            printf("in loop %s\n",store[i3] );
+            if(i3<2){
+               k2=0; 
+            }
+            //printf("K value%d\n",k2 );   
+            else if(1<i3 && i3<4){
+                k2=1;
+            }
+            //printf("K value%d\n",k2 );
+            else if(3<i3 && i3<6){
+                k2=2;
+            }
+            //printf("K value%d\n",k2 );
+            else if(5<i3 && i3<8){
+                k2=3;
+            }
+            printf("K value%d\n",k2 );
+            if(k2!=k&&k2!=k1){
+                printf("OLD server\n");
+                if(strstr(store[i3],".3")){
+                    count3++;
+                    printf("right servers%d\n",k );
+                    printf("right servers%d\n",k2 );
+                    printf("filename %s\n",store[i3] );
+                    printf("The number %d\n",sock[0] );
+                    printf("%d\n",k2 );
+                    if((send(sock[k2],store[i3],100,0))<0){
+                        puts("Send failed");
+                        return 1;   
+                    }
+                    printf("Finished send\n");
+                    printf("%d\n",k1 );
+                    if((recv(sock[k2],serversize,20,0))<0){
+                        printf("Send error in file\n");
+                    }
+                    printf("server size%s\n",serversize );
+                    int partsize=atoi(serversize);
+                    if((recv(sock[k2],serverfile,partsize,0))<0){
+                        printf("Send error in file\n");
+                    }
+                    printf("%s\n",serverfile );
+                    fwrite(serverfile,partsize,1,recreate);
+
+                }
+            }
+            if(count3>0){
+                break;
+            }
+        }
+
+        for(int i4=0;i4<8;i4++){
+            printf("in loop %s\n",store[i4] );
+            if(i4<2){
+               k3=0; 
+            }
+            //printf("K value%d\n",k2 );   
+            else if(1<i4 && i4<4){
+                k3=1;
+            }
+            //printf("K value%d\n",k2 );
+            else if(3<i4 && i4<6){
+                k3=2;
+            }
+            //printf("K value%d\n",k2 );
+            else if(5<i4 && i4<8){
+                k3=3;
+            }
+            printf("K value%d\n",k3 );
+            if(k3!=k && k3!=k1 && k3!=k2){
+                printf("OLD server\n");
+                if(strstr(store[i4],".4")){
+                    count4++;
+                    printf("right servers%d\n",k );
+                    printf("right servers%d\n",k2 );
+                    printf("filename %s\n",store[i4] );
+                    printf("The number %d\n",sock[0] );
+                    printf("%d\n",k3 );
+                    if((send(sock[k3],store[i4],100,0))<0){
+                        puts("Send failed");
+                        return 1;   
+                    }
+                    printf("Finished send\n");
+                    printf("%d\n",k1 );
+                    if((recv(sock[k3],serversize,20,0))<0){
+                        printf("Send error in file\n");
+                    }
+                    printf("server size%s\n",serversize );
+                    int partsize=atoi(serversize);
+                    if((recv(sock[k3],serverfile,partsize,0))<0){
+                        printf("Send error in file\n");
+                    }
+                    printf("%s\n",serverfile );
+                    fwrite(serverfile,partsize,1,recreate);
+
+                }
+            }
+            if(count4>0){
+                break;
+            }
+        }
         
 
     }

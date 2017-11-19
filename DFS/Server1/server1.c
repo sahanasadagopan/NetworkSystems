@@ -23,11 +23,26 @@ int check_identity(int client_sock){
 
 int findfilesize(char file_name[20]){
     int lsize=0;
-   FILE *filename=fopen(file_name,"r");
-   fseek (filename,0,SEEK_END);
+    char path[100];
+    printf("%s\n",file_name );
+   FILE *filename;
+   strcpy(path,"/home/sahana/NetworkSystems/DFS/Server1/");
+   strcat(path,file_name);
+   printf("%s\n",path );
+   filename=fopen(path,"r+");
+   if(filename==NULL){
+   	perror("fopen failure\n");
+   }
+   if((fseek (filename,0,SEEK_END))){
+   	perror("fseek error\n");
+   }
+   printf("seek file\n");
    lsize = ftell(filename);
+   printf("size\n");
    rewind(filename);
+   printf("rewind\n");
    printf("full size%d\n",lsize );
+   fclose(filename);
    return lsize;
 }
 
@@ -107,7 +122,7 @@ int main(int argc , char *argv[])
 				    packet_size=atoi(size);
 				    read_size = recv(client_sock , client_message , packet_size , 0);
 				   	printf("The actual data recieved in server 1 %d\n",read_size);
-				    if(read_size=fwrite(client_message,packet_size,1,file)==0){
+				    if((fwrite(client_message,packet_size,1,file))==0){
 				    	printf("error write\n");
 				    }
 				    fclose(file);
@@ -160,7 +175,6 @@ int main(int argc , char *argv[])
 						printf("Send error in filename\n");
 					}
 				}
-				//read_size=send(client_sock,filelist,20,0);
 			}
 		}
 
@@ -168,7 +182,7 @@ int main(int argc , char *argv[])
 			printf("HAve to send data\n");
 			int size;
 			DIR *dir;
-			char sendserver[10000],filesize[20];
+			char sendserver[20],recvpart[20],filesize[20],path[100];
 			char *ret1,*ret2,*ret3,*ret4;
 			struct dirent *fir;
 			dir=opendir("/home/sahana/NetworkSystems/DFS/Server1/");
@@ -186,17 +200,30 @@ int main(int argc , char *argv[])
 					printf("%s\n",sendserver );
 				}
 			}
-			/*if((recv(client_sock,sendserver,20,0))<0){
+			if((recv(client_sock,recvpart,20,0))<0){
 				printf("Send error in file\n");
 			}
-			size = findfilesize(sendserver);
+			printf("The needed file Part is %s\n",recvpart);
+			size = findfilesize(recvpart);
+			printf("size of the %d\n",size );
 			sprintf(filesize,"%d",size);
+			printf("%s\n",filesize );
 			if(send(client_sock,filesize,20,0)<0){
 				printf("Error in sending the size\n");
 			}
+			FILE *filecnt;
+		    strcpy(path,"/home/sahana/NetworkSystems/DFS/Server1/");
+		    strcat(path,recvpart);
+		    printf("%s\n",path );
+		    filecnt=fopen(path,"r+");
+		    if(filecnt==NULL){
+		   		perror("fopen failure\n");
+		    }
+			fread(sendserver,size,1,filecnt);
 			if(send(client_sock,sendserver,size,0)<0){
 				printf("Error in sending part\n");
-			}*/
+			}
+			fclose(filecnt);
 		}
 
 	    if(read_size == 0)
