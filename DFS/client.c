@@ -7,11 +7,14 @@
 #include <arpa/inet.h> //inet_addr
 #include <unistd.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include "client.h"
 
 //global//
 char *parts[100];
 char *broken;
+int array[20];
+int j=0;
 int create_sock(int n,char* port){
     printf("value of port connecting%s\n",port );
     int sock[4];
@@ -127,9 +130,63 @@ check_t send_filename(int sock, char filename[20],char number[2]){
     return SUCCESS;
 }
 
+
+
+check_t enquire_filelist(int sock){
+    char server_message[20];
+    int recv_byte,i=0,send_byte;
+    printf("%d\n",sock );
+    while(i<2){
+        usleep(2);
+        if(recv_byte=recv(sock,server_message,20,0)<0){
+            printf("recv error in file parts name\n");
+        }
+        i++;
+        printf("%s\n",server_message );
+        if(strstr(server_message,".1")){
+            array[j]=1;
+            j++;
+        }
+        if(strstr(server_message,".2")){
+            array[j]=2;
+            j++;
+        }
+        if(strstr(server_message,".3")){
+            array[j]=3;
+            j++;
+        }
+        if(strstr(server_message,".4")){
+            array[j]=4;
+            j++;
+        }
+    }
+    return SUCCESS;
+}
+
+check_t store_list(int sock,char store[8][MAXLIST],int n){
+    char recvlist[20];
+    int recv_byte;
+    int j=0;
+    while(j<2){
+        if(recv_byte=recv(sock,recvlist,20,0)<0){
+            printf("recv error in file parts name\n");
+        }
+        if(j==0){
+            strcpy(store[n-1],recvlist);
+        }
+        if(j==1){
+            strcpy(store[n],recvlist);
+        }
+        printf("%s\n",store[j] );
+        j++;
+    }
+}
+
 int main(int argc , char *argv[])
 {
     int sock[4];
+    char store[3][20];
+    int count1=0,count2=0,count3=0,count4=0;
     char message[100000] , server_reply[2000],command[20],filename[20],size[10];
     FILE *fp; 
     int size_divide,count=0,fullsize,packet_size,lsize=0,sizesent;
@@ -268,17 +325,133 @@ int main(int argc , char *argv[])
             count +=1;
         }
     }
+
+
+
     if(strcmp(command,"GET")==0){
-           printf("Put command\n"); 
+        printf("requesting servers.................\n");
+        int i=1,k=0;
+        FILE *recreate;
+        char store[4][MAXLIST],serversize[20],serverfile[1000];
+        store_list(sock[0],store,i);
+        printf("Server 1 done\n");
+        i+2;
+        printf("%d\n",i );
+        store_list(sock[1],store,i);
+        printf("Server 2 done\n");
+        i+2;
+        store_list(sock[2],store,i);
+        printf("Server 3 done\n");
+        i+2;
+        store_list(sock[3],store,i);
+        printf("Server 4 done\n");
+        recreate=fopen("recieved","w");
+        /*for(int i=0;i<8;i++){
+            if(i<2){
+               j=0; 
+            }
+                
+            if(1<i<4){
+                k=1;
+            }
+            if(3<i<6){
+                k=2;
+            }
+            if(5<j<8){
+                k=3;
+            }
+            if(strcmp(store[i],".1")==0){
+                printf("%s\n",store[i] );
+                printf("%d\n",i );
+                if((send(sock[k],store[i],20,0))<0){
+                    puts("Send failed");
+                    return 1;   
+                }
+                if((recv(sock[i],serversize,20,0))<0){
+                    printf("Send error in file\n");
+                }
+                printf("%s\n",serversize );
+                int partsize=atoi(serversize);
+                if((recv(sock[i],serverfile,partsize,0))<0){
+                    printf("Send error in file\n");
+                }
+                printf("%s\n",serverfile );
+            }
+        }*/
+        
+
     }
+
     if(strcmp(command,"LIST")==0){
         printf("List command\n");
+        enquire_filelist(sock[0]);
+        enquire_filelist(sock[1]);
+        enquire_filelist(sock[2]);
+        enquire_filelist(sock[3]);
+        for(int i=0;i<8;i++){
+            if(array[i]==1){
+                if(count1>0){
+                    count1++;
+                }
+                else{
+                    printf("1.txt\n");
+                    count1++;
+                }
+            }
+        }
+        for(int i=0;i<8;i++){
+            if(array[i]==2){
+                if(count2>0){
+                    count2++;
+                }
+                else{
+                    printf("2.txt\n");
+                    count2++;
+                }
+            }
+        }
+        for(int i=0;i<8;i++){
+            if(array[i]==3){
+                if(count3>0){
+                    count3++;
+                }
+                else{
+                    printf("3.txt\n");
+                    count3++;
+                }
+            }
+        }
+        for(int i=0;i<8;i++){
+            if(array[i]==4){
+                if(count4>0){
+                    count4++;
+                }
+                else{
+                    printf("4.txt\n");
+                    count4++;
+                }
+            }
+        }
+        if(count1==0){
+            printf("1.txt incomplete\n" );
+        }
+        if(count2==0){
+            printf("2.txt incomplete\n" );
+        }
+        if(count3==0){
+            printf("3.txt incomplete\n" );
+        }
+        if(count4==0){
+            printf("4.txt incomplete\n" );
+        }
 
 
     }
      
     close(sock[0]);
-    //close(sock[1]);
+    close(sock[1]);
+    close(sock[2]);
+    close(sock[3]);
 
     return 0;
 }

@@ -15,5 +15,6 @@
 
 typedef enum {SUCCESS=0,FAILURE=1} check_t ;
 
+#define MAXLIST 20
 
 #endif
